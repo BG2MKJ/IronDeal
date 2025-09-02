@@ -27,6 +27,9 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         data_info.h
         database_manager.h
         database_manager.cpp
+        com_protocol.h
+        login.h login.cpp login.ui
+
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET IronDeal APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

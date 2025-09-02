@@ -2,13 +2,15 @@
 #include "data_info.h"
 #include "database_manager.h"
 #include "mainwindow.h"
-
+#include "login.h"
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
     MainWindow w;
 
     QApplication app(argc, argv);
+    login li;
+    li.show();
 
     // 初始化数据库
     DatabaseManager dbManager;
