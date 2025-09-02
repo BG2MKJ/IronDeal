@@ -1,18 +1,24 @@
 #include "database_manager.h"
-#include <QVariant>
-#include <QDebug>
 #include <QDateTime>
+#include <QDebug>
+#include <QVariant>
 
-DatabaseManager::DatabaseManager() : isOpen(false) {
+DatabaseManager::DatabaseManager()
+    : isOpen(false)
+{
     db = QSqlDatabase::addDatabase("QSQLITE");
 }
 
-DatabaseManager::~DatabaseManager() {
+DatabaseManager::~DatabaseManager()
+{
     disconnectFromDatabase();
 }
 
-bool DatabaseManager::connectToDatabase(const QString& host, const QString& dbname,
-                                        const QString& user, const QString& password) {
+bool DatabaseManager::connectToDatabase(const QString &host,
+                                        const QString &dbname,
+                                        const QString &user,
+                                        const QString &password)
+{
     db.setHostName(host);
     db.setDatabaseName(dbname);
     db.setUserName(user);
@@ -29,7 +35,8 @@ bool DatabaseManager::connectToDatabase(const QString& host, const QString& dbna
     return true;
 }
 
-void DatabaseManager::disconnectFromDatabase() {
+void DatabaseManager::disconnectFromDatabase()
+{
     if (db.isOpen()) {
         db.close();
         isOpen = false;
@@ -37,7 +44,8 @@ void DatabaseManager::disconnectFromDatabase() {
     }
 }
 
-bool DatabaseManager::executeQuery(const QString &query) {
+bool DatabaseManager::executeQuery(const QString &query)
+{
     if (!isOpen) {
         qDebug() << "Database is not connected";
         return false;
@@ -52,8 +60,10 @@ bool DatabaseManager::executeQuery(const QString &query) {
     return true;
 }
 
-bool DatabaseManager::createUser(const User &user) {
-    if (!isOpen) return false;
+bool DatabaseManager::createUser(const User &user)
+{
+    if (!isOpen)
+        return false;
 
     QSqlQuery query(db);
     query.prepare("INSERT INTO users (userID, username, password, nickname, avatarURL, "
@@ -79,9 +89,11 @@ bool DatabaseManager::createUser(const User &user) {
     return true;
 }
 
-User DatabaseManager::getUserByID(int userID) {
+User DatabaseManager::getUserByID(int userID)
+{
     User user;
-    if (!isOpen) return user;
+    if (!isOpen)
+        return user;
 
     QSqlQuery query(db);
     query.prepare("SELECT * FROM users WHERE userID = :userID");
@@ -106,8 +118,10 @@ User DatabaseManager::getUserByID(int userID) {
     return user;
 }
 
-bool DatabaseManager::updateUser(const User& user) {
-    if (!isOpen) return false;
+bool DatabaseManager::updateUser(const User &user)
+{
+    if (!isOpen)
+        return false;
 
     QSqlQuery query(db);
     query.prepare("UPDATE users SET username = :username, password = :password, "
@@ -134,8 +148,10 @@ bool DatabaseManager::updateUser(const User& user) {
     return true;
 }
 
-bool DatabaseManager::deleteUser(int userID) {
-    if (!isOpen) return false;
+bool DatabaseManager::deleteUser(int userID)
+{
+    if (!isOpen)
+        return false;
 
     QSqlQuery query(db);
     query.prepare("DELETE FROM users WHERE userID = :userID");
@@ -148,8 +164,10 @@ bool DatabaseManager::deleteUser(int userID) {
     return true;
 }
 
-bool DatabaseManager::createProduct(const Product& product) {
-    if (!isOpen) return false;
+bool DatabaseManager::createProduct(const Product &product)
+{
+    if (!isOpen)
+        return false;
 
     // 首先插入产品基本信息
     QSqlQuery query(db);
@@ -174,7 +192,7 @@ bool DatabaseManager::createProduct(const Product& product) {
     }
 
     // 插入产品图片
-    for (const auto& imageURL : product.description_imageURLs) {
+    for (const auto &imageURL : product.description_imageURLs) {
         QSqlQuery imgQuery(db);
         imgQuery.prepare("INSERT INTO product_images (productID, imageURL) "
                          "VALUES (:productID, :imageURL)");
@@ -187,7 +205,7 @@ bool DatabaseManager::createProduct(const Product& product) {
     }
 
     // 插入产品分类
-    for (const auto& productClass : product.product_class) {
+    for (const auto &productClass : product.product_class) {
         QSqlQuery classQuery(db);
         classQuery.prepare("INSERT INTO product_classes (classID, productID, stock, "
                            "small_imageURL, name, price) "
@@ -209,9 +227,11 @@ bool DatabaseManager::createProduct(const Product& product) {
     return true;
 }
 
-Product DatabaseManager::getProductByID(int productID) {
+Product DatabaseManager::getProductByID(int productID)
+{
     Product product;
-    if (!isOpen) return product;
+    if (!isOpen)
+        return product;
 
     // 获取产品基本信息
     QSqlQuery query(db);
@@ -266,8 +286,10 @@ Product DatabaseManager::getProductByID(int productID) {
     return product;
 }
 
-bool DatabaseManager::updataProduct(const Product& product) {
-    if (!isOpen) return false;
+bool DatabaseManager::updataProduct(const Product &product)
+{
+    if (!isOpen)
+        return false;
 
     QSqlQuery query(db);
     query.prepare("UPDATE products SET description = :description, "
@@ -297,7 +319,7 @@ bool DatabaseManager::updataProduct(const Product& product) {
     deleteImgQuery.bindValue(":productID", product.productID);
     deleteImgQuery.exec();
 
-    for (const auto& imageURL : product.description_imageURLs) {
+    for (const auto &imageURL : product.description_imageURLs) {
         QSqlQuery imgQuery(db);
         imgQuery.prepare("INSERT INTO product_images (productID, imageURL) "
                          "VALUES (:productID, :imageURL)");
@@ -312,7 +334,7 @@ bool DatabaseManager::updataProduct(const Product& product) {
     deleteClassQuery.bindValue(":productID", product.productID);
     deleteClassQuery.exec();
 
-    for (const auto& productClass : product.product_class) {
+    for (const auto &productClass : product.product_class) {
         QSqlQuery classQuery(db);
         classQuery.prepare("INSERT INTO product_classes (classID, productID, stock, "
                            "small_imageURL, name, price) "
@@ -332,8 +354,10 @@ bool DatabaseManager::updataProduct(const Product& product) {
     return true;
 }
 
-bool DatabaseManager::deleteProduct(int productID) {
-    if (!isOpen) return false;
+bool DatabaseManager::deleteProduct(int productID)
+{
+    if (!isOpen)
+        return false;
 
     // 先删除相关数据
     QSqlQuery deleteImgQuery(db);
@@ -358,8 +382,10 @@ bool DatabaseManager::deleteProduct(int productID) {
     return true;
 }
 
-bool DatabaseManager::createOrder(const Order& order) {
-    if (!isOpen) return false;
+bool DatabaseManager::createOrder(const Order &order)
+{
+    if (!isOpen)
+        return false;
 
     QSqlQuery query(db);
     query.prepare("INSERT INTO orders (orderID, userID, sellerID, totalAmount, status, address) "
@@ -378,7 +404,7 @@ bool DatabaseManager::createOrder(const Order& order) {
     }
 
     // 插入订单项
-    for (const auto& item : order.orderitem) {
+    for (const auto &item : order.orderitem) {
         QSqlQuery itemQuery(db);
         itemQuery.prepare("INSERT INTO order_items (orderID, productID, classID, mount) "
                           "VALUES (:orderID, :productID, :classID, :mount)");
@@ -396,9 +422,11 @@ bool DatabaseManager::createOrder(const Order& order) {
     return true;
 }
 
-Order DatabaseManager::getOrderById(int orderId) {
+Order DatabaseManager::getOrderById(int orderId)
+{
     Order order;
-    if (!isOpen) return order;
+    if (!isOpen)
+        return order;
 
     // 获取订单基本信息
     QSqlQuery query(db);
@@ -436,8 +464,10 @@ Order DatabaseManager::getOrderById(int orderId) {
     return order;
 }
 
-bool DatabaseManager::updateOrderStatus(int orderId, int status) {
-    if (!isOpen) return false;
+bool DatabaseManager::updateOrderStatus(int orderId, int status)
+{
+    if (!isOpen)
+        return false;
 
     QSqlQuery query(db);
     query.prepare("UPDATE orders SET status = :status WHERE orderID = :orderID");
@@ -451,8 +481,10 @@ bool DatabaseManager::updateOrderStatus(int orderId, int status) {
     return true;
 }
 
-bool DatabaseManager::deleteOrder(int orderId) {
-    if (!isOpen) return false;
+bool DatabaseManager::deleteOrder(int orderId)
+{
+    if (!isOpen)
+        return false;
 
     // 先删除订单项
     QSqlQuery deleteItemsQuery(db);
@@ -472,7 +504,8 @@ bool DatabaseManager::deleteOrder(int orderId) {
     return true;
 }
 
-bool DatabaseManager::initializeDatabase(const QString& dbPath) {
+bool DatabaseManager::initializeDatabase(const QString &dbPath)
+{
     // 如果已经打开，先关闭
     if (isOpen) {
         disconnectFromDatabase();
@@ -511,7 +544,8 @@ bool DatabaseManager::initializeDatabase(const QString& dbPath) {
     return createTables();
 }
 
-bool DatabaseManager::createTables() {
+bool DatabaseManager::createTables()
+{
     if (!isOpen) {
         qDebug() << "Database is not open";
         return false;
@@ -526,74 +560,72 @@ bool DatabaseManager::createTables() {
     }
 
     // 创建用户表
-    QStringList tables = {
-        // 用户表
-        "CREATE TABLE IF NOT EXISTS users ("
-        "userID INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "username TEXT UNIQUE NOT NULL,"
-        "password TEXT NOT NULL,"
-        "nickname TEXT,"
-        "avatarURL TEXT,"
-        "phone TEXT,"
-        "default_address TEXT,"
-        "balance REAL DEFAULT 0.0,"
-        "registerTime TEXT,"
-        "userLevel INTEGER DEFAULT 1"
-        ");",
+    QStringList tables = {// 用户表
+                          "CREATE TABLE IF NOT EXISTS users ("
+                          "userID INTEGER PRIMARY KEY AUTOINCREMENT,"
+                          "username TEXT UNIQUE NOT NULL,"
+                          "password TEXT NOT NULL,"
+                          "nickname TEXT,"
+                          "avatarURL TEXT,"
+                          "phone TEXT,"
+                          "default_address TEXT,"
+                          "balance REAL DEFAULT 0.0,"
+                          "registerTime TEXT,"
+                          "userLevel INTEGER DEFAULT 1"
+                          ");",
 
-        // 产品表
-        "CREATE TABLE IF NOT EXISTS products ("
-        "productID INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "description TEXT,"
-        "brief_description TEXT,"
-        "specification TEXT,"
-        "brand TEXT,"
-        "productName TEXT NOT NULL,"
-        "category TEXT,"
-        "sellerID INTEGER,"
-        "salesCount INTEGER DEFAULT 0"
-        ");",
+                          // 产品表
+                          "CREATE TABLE IF NOT EXISTS products ("
+                          "productID INTEGER PRIMARY KEY AUTOINCREMENT,"
+                          "description TEXT,"
+                          "brief_description TEXT,"
+                          "specification TEXT,"
+                          "brand TEXT,"
+                          "productName TEXT NOT NULL,"
+                          "category TEXT,"
+                          "sellerID INTEGER,"
+                          "salesCount INTEGER DEFAULT 0"
+                          ");",
 
-        // 产品图片表
-        "CREATE TABLE IF NOT EXISTS product_images ("
-        "imageID INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "productID INTEGER,"
-        "imageURL TEXT NOT NULL,"
-        "FOREIGN KEY (productID) REFERENCES products(productID) ON DELETE CASCADE"
-        ");",
+                          // 产品图片表
+                          "CREATE TABLE IF NOT EXISTS product_images ("
+                          "imageID INTEGER PRIMARY KEY AUTOINCREMENT,"
+                          "productID INTEGER,"
+                          "imageURL TEXT NOT NULL,"
+                          "FOREIGN KEY (productID) REFERENCES products(productID) ON DELETE CASCADE"
+                          ");",
 
-        // 产品分类表
-        "CREATE TABLE IF NOT EXISTS product_classes ("
-        "classID INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "productID INTEGER,"
-        "stock INTEGER DEFAULT 0,"
-        "small_imageURL TEXT,"
-        "name TEXT NOT NULL,"
-        "price REAL DEFAULT 0.0,"
-        "FOREIGN KEY (productID) REFERENCES products(productID) ON DELETE CASCADE"
-        ");",
+                          // 产品分类表
+                          "CREATE TABLE IF NOT EXISTS product_classes ("
+                          "classID INTEGER PRIMARY KEY AUTOINCREMENT,"
+                          "productID INTEGER,"
+                          "stock INTEGER DEFAULT 0,"
+                          "small_imageURL TEXT,"
+                          "name TEXT NOT NULL,"
+                          "price REAL DEFAULT 0.0,"
+                          "FOREIGN KEY (productID) REFERENCES products(productID) ON DELETE CASCADE"
+                          ");",
 
-        // 订单表
-        "CREATE TABLE IF NOT EXISTS orders ("
-        "orderID INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "userID INTEGER,"
-        "sellerID INTEGER,"
-        "totalAmount REAL DEFAULT 0.0,"
-        "status INTEGER DEFAULT 1,"
-        "address TEXT,"
-        "createdTime TEXT DEFAULT CURRENT_TIMESTAMP"
-        ");",
+                          // 订单表
+                          "CREATE TABLE IF NOT EXISTS orders ("
+                          "orderID INTEGER PRIMARY KEY AUTOINCREMENT,"
+                          "userID INTEGER,"
+                          "sellerID INTEGER,"
+                          "totalAmount REAL DEFAULT 0.0,"
+                          "status INTEGER DEFAULT 1,"
+                          "address TEXT,"
+                          "createdTime TEXT DEFAULT CURRENT_TIMESTAMP"
+                          ");",
 
-        // 订单项表
-        "CREATE TABLE IF NOT EXISTS order_items ("
-        "itemID INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "orderID INTEGER,"
-        "productID INTEGER,"
-        "classID INTEGER,"
-        "mount INTEGER DEFAULT 1,"
-        "FOREIGN KEY (orderID) REFERENCES orders(orderID) ON DELETE CASCADE"
-        ");"
-    };
+                          // 订单项表
+                          "CREATE TABLE IF NOT EXISTS order_items ("
+                          "itemID INTEGER PRIMARY KEY AUTOINCREMENT,"
+                          "orderID INTEGER,"
+                          "productID INTEGER,"
+                          "classID INTEGER,"
+                          "mount INTEGER DEFAULT 1,"
+                          "FOREIGN KEY (orderID) REFERENCES orders(orderID) ON DELETE CASCADE"
+                          ");"};
 
     for (const QString &tableSql : tables) {
         if (!query.exec(tableSql)) {

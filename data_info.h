@@ -1,8 +1,8 @@
 #ifndef DATA_INFO_H
 #define DATA_INFO_H
 
-#include <vector>
 #include <string>
+#include <vector>
 
 struct ProductClass
 {
@@ -26,7 +26,6 @@ struct Product
     std::string category;
     int sellerID;
     int salesCount;
-
 };
 
 struct User
@@ -41,7 +40,6 @@ struct User
     double balance;
     std::string registerTime;
     int userLevel;
-
 };
 struct OrderItem
 {
@@ -56,12 +54,12 @@ struct Cart
     std::vector<OrderItem> Items;
 };
 
-enum class OrderStatus{
+enum class OrderStatus {
     wait_to_pay = 1,
     collecting = 2,
     shipping = 3,
-    finished =4,
-    canceled =5
+    finished = 4,
+    canceled = 5
 
 };
 
