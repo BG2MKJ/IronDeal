@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Sql)
+find_package(Qt6 REQUIRED COMPONENTS Core Network Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
 set(PROJECT_SOURCES
@@ -29,6 +30,9 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         database_manager.cpp
         com_protocol.h
         login.h login.cpp login.ui
+        communicator.h communicator.cpp
+        
+
 
     )
 # Define target properties for Android with Qt 6 as:
@@ -53,6 +57,7 @@ target_link_libraries(IronDeal PRIVATE
     Qt${QT_VERSION_MAJOR}::Core
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Sql  # 这一行是关键
+    Qt${QT_VERSION_MAJOR}::Network
 )
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an

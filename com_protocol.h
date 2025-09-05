@@ -6,6 +6,7 @@
 #include <vector>
 #include <QString>
 #include <QByteArray>
+#include "json.hpp"
 #include "data_info.h"
 
 // 协议版本号

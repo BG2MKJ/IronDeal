@@ -1,7 +1,4 @@
 #include "database_manager.h"
-#include <QDateTime>
-#include <QDebug>
-#include <QVariant>
 
 DatabaseManager::DatabaseManager()
     : isOpen(false)
@@ -14,10 +11,10 @@ DatabaseManager::~DatabaseManager()
     disconnectFromDatabase();
 }
 
-bool DatabaseManager::connectToDatabase(const QString &host,
-                                        const QString &dbname,
-                                        const QString &user,
-                                        const QString &password)
+bool DatabaseManager::connectToDatabase(const QString& host,
+    const QString& dbname,
+    const QString& user,
+    const QString& password)
 {
     db.setHostName(host);
     db.setDatabaseName(dbname);
@@ -44,7 +41,7 @@ void DatabaseManager::disconnectFromDatabase()
     }
 }
 
-bool DatabaseManager::executeQuery(const QString &query)
+bool DatabaseManager::executeQuery(const QString& query)
 {
     if (!isOpen) {
         qDebug() << "Database is not connected";
@@ -60,16 +57,16 @@ bool DatabaseManager::executeQuery(const QString &query)
     return true;
 }
 
-bool DatabaseManager::createUser(const User &user)
+bool DatabaseManager::createUser(const User& user)
 {
     if (!isOpen)
         return false;
 
     QSqlQuery query(db);
     query.prepare("INSERT INTO users (userID, username, password, nickname, avatarURL, "
-                  "phone, default_address, balance, registerTime, userLevel) "
-                  "VALUES (:userID, :username, :password, :nickname, :avatarURL, "
-                  ":phone, :default_address, :balance, :registerTime, :userLevel)");
+        "phone, default_address, rating, numsofRate, balance, registerTime, userLevel) "
+        "VALUES (:userID, :username, :password, :nickname, :avatarURL, "
+        ":phone, :default_address, :rating, :numsofRate, :balance, :registerTime, :userLevel)");
 
     query.bindValue(":userID", user.userID);
     query.bindValue(":username", QString::fromStdString(user.username));
@@ -78,6 +75,8 @@ bool DatabaseManager::createUser(const User &user)
     query.bindValue(":avatarURL", QString::fromStdString(user.avatarURL));
     query.bindValue(":phone", QString::fromStdString(user.phone));
     query.bindValue(":default_address", QString::fromStdString(user.default_address));
+    query.bindValue(":rating", user.rating);
+    query.bindValue(":numsofRate", user.numsofRate);
     query.bindValue(":balance", user.balance);
     query.bindValue(":registerTime", QString::fromStdString(user.registerTime));
     query.bindValue(":userLevel", user.userLevel);
@@ -86,6 +85,13 @@ bool DatabaseManager::createUser(const User &user)
         qDebug() << "Create user failed: " << query.lastError().text();
         return false;
     }
+
+    // 为用户创建购物车
+    if (!createUserCart(user.userID)) {
+        qDebug() << "Failed to create cart for user: " << user.userID;
+        return false;
+    }
+
     return true;
 }
 
@@ -111,6 +117,8 @@ User DatabaseManager::getUserByID(int userID)
     user.avatarURL = query.value("avatarURL").toString().toStdString();
     user.phone = query.value("phone").toString().toStdString();
     user.default_address = query.value("default_address").toString().toStdString();
+    user.rating = query.value("rating").toFloat();
+    user.numsofRate = query.value("numsofRate").toInt();
     user.balance = query.value("balance").toDouble();
     user.registerTime = query.value("registerTime").toString().toStdString();
     user.userLevel = query.value("userLevel").toInt();
@@ -118,17 +126,17 @@ User DatabaseManager::getUserByID(int userID)
     return user;
 }
 
-bool DatabaseManager::updateUser(const User &user)
+bool DatabaseManager::updateUser(const User& user)
 {
     if (!isOpen)
         return false;
 
     QSqlQuery query(db);
     query.prepare("UPDATE users SET username = :username, password = :password, "
-                  "nickname = :nickname, avatarURL = :avatarURL, phone = :phone, "
-                  "default_address = :default_address, balance = :balance, "
-                  "registerTime = :registerTime, userLevel = :userLevel "
-                  "WHERE userID = :userID");
+        "nickname = :nickname, avatarURL = :avatarURL, phone = :phone, "
+        "default_address = :default_address, rating = :rating, numsofRate = :numsofRate, balance = :balance, "
+        "registerTime = :registerTime, userLevel = :userLevel "
+        "WHERE userID = :userID");
 
     query.bindValue(":username", QString::fromStdString(user.username));
     query.bindValue(":password", QString::fromStdString(user.password));
@@ -136,6 +144,8 @@ bool DatabaseManager::updateUser(const User &user)
     query.bindValue(":avatarURL", QString::fromStdString(user.avatarURL));
     query.bindValue(":phone", QString::fromStdString(user.phone));
     query.bindValue(":default_address", QString::fromStdString(user.default_address));
+    query.bindValue(":rating", user.rating);
+    query.bindValue(":numsofRate", user.numsofRate);
     query.bindValue(":balance", user.balance);
     query.bindValue(":registerTime", QString::fromStdString(user.registerTime));
     query.bindValue(":userLevel", user.userLevel);
@@ -148,11 +158,35 @@ bool DatabaseManager::updateUser(const User &user)
     return true;
 }
 
+bool DatabaseManager::updateUserRating(int userID, int newRating)
+{
+    if (!isOpen)
+        return false;
+
+    QSqlQuery query(db);
+    query.prepare("UPDATE users SET rating = :rating WHERE userID = :userID");
+    query.bindValue(":rating", newRating);
+    query.bindValue(":userID", userID);
+
+    if (!query.exec()) {
+        qDebug() << "Update user rating failed: " << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
 bool DatabaseManager::deleteUser(int userID)
 {
     if (!isOpen)
         return false;
 
+    // 先删除用户的购物车
+    QSqlQuery deleteCartQuery(db);
+    deleteCartQuery.prepare("DELETE FROM cart_items WHERE userID = :userID");
+    deleteCartQuery.bindValue(":userID", userID);
+    deleteCartQuery.exec();
+
+    // 再删除用户
     QSqlQuery query(db);
     query.prepare("DELETE FROM users WHERE userID = :userID");
     query.bindValue(":userID", userID);
@@ -164,7 +198,7 @@ bool DatabaseManager::deleteUser(int userID)
     return true;
 }
 
-bool DatabaseManager::createProduct(const Product &product)
+bool DatabaseManager::createProduct(const Product& product)
 {
     if (!isOpen)
         return false;
@@ -172,9 +206,9 @@ bool DatabaseManager::createProduct(const Product &product)
     // 首先插入产品基本信息
     QSqlQuery query(db);
     query.prepare("INSERT INTO products (productID, description, brief_description, "
-                  "specification, brand, productName, category, sellerID, salesCount) "
-                  "VALUES (:productID, :description, :brief_description, "
-                  ":specification, :brand, :productName, :category, :sellerID, :salesCount)");
+        "specification, brand, productName, category, sellerID, salesCount) "
+        "VALUES (:productID, :description, :brief_description, "
+        ":specification, :brand, :productName, :category, :sellerID, :salesCount)");
 
     query.bindValue(":productID", product.productID);
     query.bindValue(":description", QString::fromStdString(product.description));
@@ -192,10 +226,10 @@ bool DatabaseManager::createProduct(const Product &product)
     }
 
     // 插入产品图片
-    for (const auto &imageURL : product.description_imageURLs) {
+    for (const auto& imageURL : product.description_imageURLs) {
         QSqlQuery imgQuery(db);
         imgQuery.prepare("INSERT INTO product_images (productID, imageURL) "
-                         "VALUES (:productID, :imageURL)");
+            "VALUES (:productID, :imageURL)");
         imgQuery.bindValue(":productID", product.productID);
         imgQuery.bindValue(":imageURL", QString::fromStdString(imageURL));
 
@@ -205,12 +239,12 @@ bool DatabaseManager::createProduct(const Product &product)
     }
 
     // 插入产品分类
-    for (const auto &productClass : product.product_class) {
+    for (const auto& productClass : product.product_class) {
         QSqlQuery classQuery(db);
         classQuery.prepare("INSERT INTO product_classes (classID, productID, stock, "
-                           "small_imageURL, name, price) "
-                           "VALUES (:classID, :productID, :stock, "
-                           ":small_imageURL, :name, :price)");
+            "small_imageURL, name, price) "
+            "VALUES (:classID, :productID, :stock, "
+            ":small_imageURL, :name, :price)");
 
         classQuery.bindValue(":classID", productClass.classID);
         classQuery.bindValue(":productID", product.productID);
@@ -286,17 +320,17 @@ Product DatabaseManager::getProductByID(int productID)
     return product;
 }
 
-bool DatabaseManager::updataProduct(const Product &product)
+bool DatabaseManager::updateProduct(const Product& product)
 {
     if (!isOpen)
         return false;
 
     QSqlQuery query(db);
     query.prepare("UPDATE products SET description = :description, "
-                  "brief_description = :brief_description, specification = :specification, "
-                  "brand = :brand, productName = :productName, category = :category, "
-                  "sellerID = :sellerID, salesCount = :salesCount "
-                  "WHERE productID = :productID");
+        "brief_description = :brief_description, specification = :specification, "
+        "brand = :brand, productName = :productName, category = :category, "
+        "sellerID = :sellerID, salesCount = :salesCount "
+        "WHERE productID = :productID");
 
     query.bindValue(":description", QString::fromStdString(product.description));
     query.bindValue(":brief_description", QString::fromStdString(product.brief_description));
@@ -319,10 +353,10 @@ bool DatabaseManager::updataProduct(const Product &product)
     deleteImgQuery.bindValue(":productID", product.productID);
     deleteImgQuery.exec();
 
-    for (const auto &imageURL : product.description_imageURLs) {
+    for (const auto& imageURL : product.description_imageURLs) {
         QSqlQuery imgQuery(db);
         imgQuery.prepare("INSERT INTO product_images (productID, imageURL) "
-                         "VALUES (:productID, :imageURL)");
+            "VALUES (:productID, :imageURL)");
         imgQuery.bindValue(":productID", product.productID);
         imgQuery.bindValue(":imageURL", QString::fromStdString(imageURL));
         imgQuery.exec();
@@ -334,12 +368,12 @@ bool DatabaseManager::updataProduct(const Product &product)
     deleteClassQuery.bindValue(":productID", product.productID);
     deleteClassQuery.exec();
 
-    for (const auto &productClass : product.product_class) {
+    for (const auto& productClass : product.product_class) {
         QSqlQuery classQuery(db);
         classQuery.prepare("INSERT INTO product_classes (classID, productID, stock, "
-                           "small_imageURL, name, price) "
-                           "VALUES (:classID, :productID, :stock, "
-                           ":small_imageURL, :name, :price)");
+            "small_imageURL, name, price) "
+            "VALUES (:classID, :productID, :stock, "
+            ":small_imageURL, :name, :price)");
 
         classQuery.bindValue(":classID", productClass.classID);
         classQuery.bindValue(":productID", product.productID);
@@ -382,14 +416,14 @@ bool DatabaseManager::deleteProduct(int productID)
     return true;
 }
 
-bool DatabaseManager::createOrder(const Order &order)
+bool DatabaseManager::createOrder(const Order& order)
 {
     if (!isOpen)
         return false;
 
     QSqlQuery query(db);
-    query.prepare("INSERT INTO orders (orderID, userID, sellerID, totalAmount, status, address) "
-                  "VALUES (:orderID, :userID, :sellerID, :totalAmount, :status, :address)");
+    query.prepare("INSERT INTO orders (orderID, userID, sellerID, totalAmount, status, address, createdTime) "
+        "VALUES (:orderID, :userID, :sellerID, :totalAmount, :status, :address, :createdTime)");
 
     query.bindValue(":orderID", order.orderID);
     query.bindValue(":userID", order.userID);
@@ -397,6 +431,7 @@ bool DatabaseManager::createOrder(const Order &order)
     query.bindValue(":totalAmount", order.totalAmount);
     query.bindValue(":status", order.status);
     query.bindValue(":address", QString::fromStdString(order.address));
+    query.bindValue(":createdTime", QString::fromStdString(order.createdTime));
 
     if (!query.exec()) {
         qDebug() << "Create order failed: " << query.lastError().text();
@@ -404,15 +439,16 @@ bool DatabaseManager::createOrder(const Order &order)
     }
 
     // 插入订单项
-    for (const auto &item : order.orderitem) {
+    for (const auto& item : order.orderItems) {
         QSqlQuery itemQuery(db);
-        itemQuery.prepare("INSERT INTO order_items (orderID, productID, classID, mount) "
-                          "VALUES (:orderID, :productID, :classID, :mount)");
+        itemQuery.prepare("INSERT INTO order_items (orderID, productID, classID, quantity, price) "
+            "VALUES (:orderID, :productID, :classID, :quantity, :price)");
 
         itemQuery.bindValue(":orderID", order.orderID);
         itemQuery.bindValue(":productID", item.productID);
         itemQuery.bindValue(":classID", item.classID);
-        itemQuery.bindValue(":mount", item.mount);
+        itemQuery.bindValue(":quantity", item.quantity);
+        itemQuery.bindValue(":price", item.price);
 
         if (!itemQuery.exec()) {
             qDebug() << "Insert order item failed: " << itemQuery.lastError().text();
@@ -444,6 +480,7 @@ Order DatabaseManager::getOrderById(int orderId)
     order.totalAmount = query.value("totalAmount").toDouble();
     order.status = query.value("status").toInt();
     order.address = query.value("address").toString().toStdString();
+    order.createdTime = query.value("createdTime").toString().toStdString();
 
     // 获取订单项
     QSqlQuery itemQuery(db);
@@ -455,9 +492,10 @@ Order DatabaseManager::getOrderById(int orderId)
             OrderItem item;
             item.productID = itemQuery.value("productID").toInt();
             item.classID = itemQuery.value("classID").toInt();
-            item.mount = itemQuery.value("mount").toInt();
+            item.quantity = itemQuery.value("quantity").toInt();
+            item.price = itemQuery.value("price").toDouble();
 
-            order.orderitem.push_back(item);
+            order.orderItems.push_back(item);
         }
     }
 
@@ -504,7 +542,154 @@ bool DatabaseManager::deleteOrder(int orderId)
     return true;
 }
 
-bool DatabaseManager::initializeDatabase(const QString &dbPath)
+Cart DatabaseManager::getCartByUserID(int userID)
+{
+    Cart cart;
+    cart.userID = userID;
+    cart.totalAmount = 0.0;
+
+    if (!isOpen)
+        return cart;
+
+    QSqlQuery query(db);
+    query.prepare("SELECT ci.productID, ci.classID, ci.quantity, pc.price, p.productName, pc.name as className "
+        "FROM cart_items ci "
+        "JOIN product_classes pc ON ci.classID = pc.classID "
+        "JOIN products p ON ci.productID = p.productID "
+        "WHERE ci.userID = :userID");
+    query.bindValue(":userID", userID);
+
+    if (query.exec()) {
+        while (query.next()) {
+            OrderItem item;
+            item.productID = query.value("productID").toInt();
+            item.classID = query.value("classID").toInt();
+            item.quantity = query.value("quantity").toInt();
+            item.price = query.value("price").toDouble();
+
+            cart.items.push_back(item);
+            cart.totalAmount += item.quantity * item.price;
+        }
+    }
+    else {
+        qDebug() << "Get cart failed: " << query.lastError().text();
+    }
+
+    return cart;
+}
+
+bool DatabaseManager::updateCart(const Cart& cart)
+{
+    if (!isOpen)
+        return false;
+
+    // 先清空购物车
+    if (!clearCart(cart.userID)) {
+        return false;
+    }
+
+    // 再添加所有商品
+    for (const auto& item : cart.items) {
+        QSqlQuery query(db);
+        query.prepare("INSERT INTO cart_items (userID, productID, classID, quantity) "
+            "VALUES (:userID, :productID, :classID, :quantity)");
+
+        query.bindValue(":userID", cart.userID);
+        query.bindValue(":productID", item.productID);
+        query.bindValue(":classID", item.classID);
+        query.bindValue(":quantity", item.quantity);
+
+        if (!query.exec()) {
+            qDebug() << "Update cart failed: " << query.lastError().text();
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool DatabaseManager::clearCart(int userID)
+{
+    if (!isOpen)
+        return false;
+
+    QSqlQuery query(db);
+    query.prepare("DELETE FROM cart_items WHERE userID = :userID");
+    query.bindValue(":userID", userID);
+
+    if (!query.exec()) {
+        qDebug() << "Clear cart failed: " << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+bool DatabaseManager::addItemToCart(int userID, const OrderItem& item)
+{
+    if (!isOpen)
+        return false;
+
+    // 检查是否已存在相同商品
+    QSqlQuery checkQuery(db);
+    checkQuery.prepare("SELECT quantity FROM cart_items WHERE userID = :userID AND productID = :productID AND classID = :classID");
+    checkQuery.bindValue(":userID", userID);
+    checkQuery.bindValue(":productID", item.productID);
+    checkQuery.bindValue(":classID", item.classID);
+
+    if (checkQuery.exec() && checkQuery.next()) {
+        // 更新数量
+        int existingQuantity = checkQuery.value("quantity").toInt();
+        QSqlQuery updateQuery(db);
+        updateQuery.prepare("UPDATE cart_items SET quantity = :quantity WHERE userID = :userID AND productID = :productID AND classID = :classID");
+        updateQuery.bindValue(":quantity", existingQuantity + item.quantity);
+        updateQuery.bindValue(":userID", userID);
+        updateQuery.bindValue(":productID", item.productID);
+        updateQuery.bindValue(":classID", item.classID);
+
+        if (!updateQuery.exec()) {
+            qDebug() << "Update cart item quantity failed: " << updateQuery.lastError().text();
+            return false;
+        }
+    }
+    else {
+        // 插入新商品
+        QSqlQuery insertQuery(db);
+        insertQuery.prepare("INSERT INTO cart_items (userID, productID, classID, quantity) "
+            "VALUES (:userID, :productID, :classID, :quantity)");
+
+        insertQuery.bindValue(":userID", userID);
+        insertQuery.bindValue(":productID", item.productID);
+        insertQuery.bindValue(":classID", item.classID);
+        insertQuery.bindValue(":quantity", item.quantity);
+
+        if (!insertQuery.exec()) {
+            qDebug() << "Add item to cart failed: " << insertQuery.lastError().text();
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool DatabaseManager::removeItemFromCart(int userID, int productID, int classID)
+{
+    if (!isOpen)
+        return false;
+
+    QSqlQuery query(db);
+    query.prepare("DELETE FROM cart_items WHERE userID = :userID AND productID = :productID AND classID = :classID");
+    query.bindValue(":userID", userID);
+    query.bindValue(":productID", productID);
+    query.bindValue(":classID", classID);
+
+    if (!query.exec()) {
+        qDebug() << "Remove item from cart failed: " << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+bool DatabaseManager::initializeDatabase(const QString& dbPath)
 {
     // 如果已经打开，先关闭
     if (isOpen) {
@@ -522,7 +707,8 @@ bool DatabaseManager::initializeDatabase(const QString &dbPath)
             }
         }
         databasePath = dir.filePath("database/ecommerce.db");
-    } else {
+    }
+    else {
         databasePath = dbPath;
     }
 
@@ -553,81 +739,99 @@ bool DatabaseManager::createTables()
 
     QSqlQuery query(db);
 
-    // 启用外键约束（SQLite需要显式启用）
+    // 启用外键约束
     if (!query.exec("PRAGMA foreign_keys = ON;")) {
         qDebug() << "Failed to enable foreign keys:" << query.lastError().text();
         return false;
     }
 
-    // 创建用户表
-    QStringList tables = {// 用户表
-                          "CREATE TABLE IF NOT EXISTS users ("
-                          "userID INTEGER PRIMARY KEY AUTOINCREMENT,"
-                          "username TEXT UNIQUE NOT NULL,"
-                          "password TEXT NOT NULL,"
-                          "nickname TEXT,"
-                          "avatarURL TEXT,"
-                          "phone TEXT,"
-                          "default_address TEXT,"
-                          "balance REAL DEFAULT 0.0,"
-                          "registerTime TEXT,"
-                          "userLevel INTEGER DEFAULT 1"
-                          ");",
+    // 创建所有表
+    QStringList tables = {
+        // 用户表（添加rating和numsofRate字段）
+        "CREATE TABLE IF NOT EXISTS users ("
+        "userID INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "username TEXT UNIQUE NOT NULL,"
+        "password TEXT NOT NULL,"
+        "nickname TEXT,"
+        "avatarURL TEXT,"
+        "phone TEXT,"
+        "default_address TEXT,"
+        "rating REAL DEFAULT 5.0,"  // 改为REAL类型
+        "numsofRate INTEGER DEFAULT 0,"  // 添加评分人数字段
+        "balance REAL DEFAULT 0.0,"
+        "registerTime TEXT,"
+        "userLevel INTEGER DEFAULT 1"
+        ");",
 
-                          // 产品表
-                          "CREATE TABLE IF NOT EXISTS products ("
-                          "productID INTEGER PRIMARY KEY AUTOINCREMENT,"
-                          "description TEXT,"
-                          "brief_description TEXT,"
-                          "specification TEXT,"
-                          "brand TEXT,"
-                          "productName TEXT NOT NULL,"
-                          "category TEXT,"
-                          "sellerID INTEGER,"
-                          "salesCount INTEGER DEFAULT 0"
-                          ");",
+        // 产品表
+        "CREATE TABLE IF NOT EXISTS products ("
+        "productID INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "description TEXT,"
+        "brief_description TEXT,"
+        "specification TEXT,"
+        "brand TEXT,"
+        "productName TEXT NOT NULL,"
+        "category TEXT,"
+        "sellerID INTEGER,"
+        "salesCount INTEGER DEFAULT 0"
+        ");",
 
-                          // 产品图片表
-                          "CREATE TABLE IF NOT EXISTS product_images ("
-                          "imageID INTEGER PRIMARY KEY AUTOINCREMENT,"
-                          "productID INTEGER,"
-                          "imageURL TEXT NOT NULL,"
-                          "FOREIGN KEY (productID) REFERENCES products(productID) ON DELETE CASCADE"
-                          ");",
+        // 产品图片表
+        "CREATE TABLE IF NOT EXISTS product_images ("
+        "imageID INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "productID INTEGER,"
+        "imageURL TEXT NOT NULL,"
+        "FOREIGN KEY (productID) REFERENCES products(productID) ON DELETE CASCADE"
+        ");",
 
-                          // 产品分类表
-                          "CREATE TABLE IF NOT EXISTS product_classes ("
-                          "classID INTEGER PRIMARY KEY AUTOINCREMENT,"
-                          "productID INTEGER,"
-                          "stock INTEGER DEFAULT 0,"
-                          "small_imageURL TEXT,"
-                          "name TEXT NOT NULL,"
-                          "price REAL DEFAULT 0.0,"
-                          "FOREIGN KEY (productID) REFERENCES products(productID) ON DELETE CASCADE"
-                          ");",
+        // 产品分类表
+        "CREATE TABLE IF NOT EXISTS product_classes ("
+        "classID INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "productID INTEGER,"
+        "stock INTEGER DEFAULT 0,"
+        "small_imageURL TEXT,"
+        "name TEXT NOT NULL,"
+        "price REAL DEFAULT 0.0,"
+        "FOREIGN KEY (productID) REFERENCES products(productID) ON DELETE CASCADE"
+        ");",
 
-                          // 订单表
-                          "CREATE TABLE IF NOT EXISTS orders ("
-                          "orderID INTEGER PRIMARY KEY AUTOINCREMENT,"
-                          "userID INTEGER,"
-                          "sellerID INTEGER,"
-                          "totalAmount REAL DEFAULT 0.0,"
-                          "status INTEGER DEFAULT 1,"
-                          "address TEXT,"
-                          "createdTime TEXT DEFAULT CURRENT_TIMESTAMP"
-                          ");",
+        // 购物车表
+        "CREATE TABLE IF NOT EXISTS cart_items ("
+        "cartItemID INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "userID INTEGER NOT NULL,"
+        "productID INTEGER NOT NULL,"
+        "classID INTEGER NOT NULL,"
+        "quantity INTEGER DEFAULT 1,"
+        "FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE,"
+        "FOREIGN KEY (productID) REFERENCES products(productID),"
+        "FOREIGN KEY (classID) REFERENCES product_classes(classID),"
+        "UNIQUE(userID, productID, classID)"
+        ");",
 
-                          // 订单项表
-                          "CREATE TABLE IF NOT EXISTS order_items ("
-                          "itemID INTEGER PRIMARY KEY AUTOINCREMENT,"
-                          "orderID INTEGER,"
-                          "productID INTEGER,"
-                          "classID INTEGER,"
-                          "mount INTEGER DEFAULT 1,"
-                          "FOREIGN KEY (orderID) REFERENCES orders(orderID) ON DELETE CASCADE"
-                          ");"};
+        // 订单表（添加createdTime字段）
+        "CREATE TABLE IF NOT EXISTS orders ("
+        "orderID INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "userID INTEGER,"
+        "sellerID INTEGER,"
+        "totalAmount REAL DEFAULT 0.0,"
+        "status INTEGER DEFAULT 1,"
+        "address TEXT,"
+        "createdTime TEXT DEFAULT CURRENT_TIMESTAMP"
+        ");",
 
-    for (const QString &tableSql : tables) {
+        // 订单项表（添加price字段，quantity代替mount）
+        "CREATE TABLE IF NOT EXISTS order_items ("
+        "itemID INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "orderID INTEGER,"
+        "productID INTEGER,"
+        "classID INTEGER,"
+        "quantity INTEGER DEFAULT 1,"
+        "price REAL DEFAULT 0.0,"
+        "FOREIGN KEY (orderID) REFERENCES orders(orderID) ON DELETE CASCADE"
+        ");"
+    };
+
+    for (const QString& tableSql : tables) {
         if (!query.exec(tableSql)) {
             qDebug() << "Failed to create table:" << query.lastError().text();
             qDebug() << "SQL:" << tableSql;
@@ -636,5 +840,12 @@ bool DatabaseManager::createTables()
     }
 
     qDebug() << "All tables created successfully";
+    return true;
+}
+
+bool DatabaseManager::createUserCart(int userID)
+{
+    // 购物车在cart_items表中通过userID关联实现
+    // 创建用户时不需要特别操作，因为购物车是空的
     return true;
 }

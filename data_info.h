@@ -1,4 +1,4 @@
-#ifndef DATA_INFO_H
+﻿#ifndef DATA_INFO_H
 #define DATA_INFO_H
 
 #include <string>
@@ -37,21 +37,26 @@ struct User
     std::string avatarURL;
     std::string phone;
     std::string default_address;
+    float rating; // 改为rating（原为rate）
+    int numsofRate;
     double balance;
     std::string registerTime;
     int userLevel;
 };
+
 struct OrderItem
 {
     int productID;
     int classID;
-    int mount;
+    int quantity; // 改为quantity（原为mount）
+    double price; // 新增价格字段
 };
 
 struct Cart
 {
     int userID;
-    std::vector<OrderItem> Items;
+    std::vector<OrderItem> items; // 改为items（原为Items）
+    double totalAmount; // 新增总金额
 };
 
 enum class OrderStatus {
@@ -60,7 +65,6 @@ enum class OrderStatus {
     shipping = 3,
     finished = 4,
     canceled = 5
-
 };
 
 struct Order
@@ -71,7 +75,8 @@ struct Order
     double totalAmount;
     int status;
     std::string address;
-    std::vector<OrderItem> orderitem;
+    std::vector<OrderItem> orderItems; // 改为orderItems（原为orderitem）
+    std::string createdTime; // 新增创建时间
 };
 
 #endif // DATA_INFO_H
